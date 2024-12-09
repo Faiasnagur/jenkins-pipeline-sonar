@@ -1,0 +1,55 @@
+pipeline {
+    agent { label 'node' }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', 
+                    credentialsId: 'git', 
+                    url: 'https://github.com/Faiasnagur/ansible-terraform.git'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    // Ensure 'sonarqube-4.7.0' is configured in Jenkins Global Tool Configuration
+                    def scannerHome = tool 'sonarqube-4.7.0'
+                    
+                    // Ensure 'sonarqube-10.1.0' is the correct name of the SonarQube server configured in Jenkins
+                    withSonarQubeEnv('sonarqube-10.1.0') { 
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.login=admin \
+                            -Dsonar.password=Faiasnagur@12345 \
+                            -Dsonar.projectKey=AnsibleTerraform \
+                            -Dsonar.exclusions=vendor/*,resources/*,*.java \
+                            -Dsonar.host.url=http://100.27.210.72:9000
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                // Ensure Terraform is installed on the node or agent
+                sh 'terraform init -reconfigure'
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                // Plan out the infrastructure changes
+                sh 'terraform plan'
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                // Apply the infrastructure changes
+                sh 'terraform apply -auto-approve'
+            }
+        }
+    }
+}
